@@ -127,7 +127,7 @@ check_dir () {
 
 
 
-crea () {
+initialize () {
 
 	echo -e "Di quanti domini devi fare il backup?"
 
@@ -150,24 +150,71 @@ crea () {
                 read PASS
 
 		# Aggiungere check directory o sito esistente
+		
+		if [ ! -d "$DIR/$DOMAIN" ] && [ ! -d "/mnt/$DOMAIN" ]; then
 
-                mkdir $DIR/$DOMAIN
-                mkdir /mnt/$DOMAIN
+			configure
+		
+		else
 
-		# Aggiungere controllo credenziali	
+			echo -e "Esiste già una directory chiamata $DOMAIN. Continuo in questa directory? (S)ì, proseguo, (n)o esco."
+	
+			read CONTINUE 
 
-                curlftpfs -o nonempty -o user=$USER:$PASS ftp.$DOMAIN /mnt/$DOMAIN
-                echo "rsync -arvHu --progress --delete --stats /mnt/$DOMAIN/ $DIR/$DOMAIN" >> $SCRIPT
+			case $CONTINUE in
 
-                let CONT=CONT+1
+		        S|s|Y|y|Sì|Si|Yes|yes)
+                		echo -e "Proseguo."
+				create_sync
+	 	        ;;
+
+		        N|n|No|no)
+                		echo -e "Esco."
+		                exit 1
+        		;;
+
+		        *)
+                		echo -e "Scelta non valida."
+	                	initialize
+        		;;
+
+        		esac
+			
+		fi
+
+
+
+		let CONT=CONT+1
 
 	done
 
 }
 
-		
+create () {
 
-configura () {
+create_dir
+create_sync
+
+}
+
+
+create_dir () {
+
+	mkdir $DIR/$DOMAIN
+        mkdir /mnt/$DOMAIN
+
+}
+
+create_sync () {
+
+        curlftpfs -o nonempty -o user=$USER:$PASS ftp.$DOMAIN /mnt/$DOMAIN
+        echo "rsync -arvHu --progress --delete --stats /mnt/$DOMAIN/ $DIR/$DOMAIN" >> $SCRIPT
+
+}		
+
+
+
+configure () {
 
 	SCRIPT="$DIR/rsync.sh"
 
@@ -175,36 +222,41 @@ configura () {
 
 		echo -e "Prima configurazione nel backup."
 
-		crea
+		configure
 		crontab
 
 	else
 
 		echo -e "Il backup è stato già configurato in questa directory."
-		EXTDOM=$($SCRIPT |awk '{print$6}' |cut -f3 -d / );
-		echo -e "Sono già configurati i backup per i seguenti domini: $EXTDOM"
+		EXTDOM=$(cat $SCRIPT |awk '{print$6}' |cut -f3 -d / );
+		echo -e "Sono già configurati i backup per i seguenti domini: \n$EXTDOM"
 
 		echo -e "Vuoi (A)ggiungere nuovi domini? Vuoi (R)esettare la configurazione del backup? Oppure (E)sci"
 		read SCELTA
 
 		case $SCELTA in
 
-		A|a) crea
-		   crontab
+		A|a) 
+			initialize
+		   	crontab
 		;; 
 
-		R|r) > $SCRIPT
-		   echo -e "Tutti i dati sui precedenti backup sono stati cancellati."
-		   crea
-		   crontab
+		R|r) 
+			> $SCRIPT
+		   	echo -e "Tutti i dati sui precedenti backup sono stati cancellati."
+		   	initialize
+		   	crontab
 		;;
 
-		E|e) exit 1;
+		E|e) 	
+			echo -e "Ok, esco."
+			exit 1;
 		;;
 
 
-		*) echo -e "Scelta non valida, scegli tra questi valorii (A/R/E)."
-		   configura
+		*) 
+			echo -e "Scelta non valida, scegli tra questi valorii (A/R/E)."
+		   	configure
 		;;
 
 		esac
@@ -218,14 +270,11 @@ configura () {
 
 crontab () {
 
-	echo "* 1 * * 1 $SCRIPT 2&1>/dev/null" > /etc/cron.d/mybackup
-        /etc/init.d/cron stop && /etc/init.d/cron start && \
-	echo -e "Sistema di backup installato con successo! \n \
-	Il primo backup è schedulato per il prossimo Lunedì alle 01:00. \n \
-	Per lanciare prima il backup, esegui $SCRIPT"
-
 	# Aggiungere quando eseguire il backup ed email di alert
 
+	echo "* 1 * * 1 $SCRIPT 2&1>/dev/null" > /etc/cron.d/mybackup
+        /etc/init.d/cron stop && /etc/init.d/cron start && \
+	echo -e "Sistema di backup installato con successo! \nIl primo backup è schedulato per il prossimo Lunedì alle 01:00. \n\nPer lanciare prima il backup, esegui $SCRIPT"
 
 }
 
@@ -235,4 +284,4 @@ check_root
 check_curlftp
 check_rsync
 check_dir
-configura
+configure
