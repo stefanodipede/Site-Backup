@@ -9,7 +9,7 @@
 # dello spazio web di una lista di siti.        #
 #                                               #
 # Lo script, installa i software necessari      #
-# come curlfts e rsync,  monta lo directory     #
+# come curlftpfs e rsync,  monta lo directory   #
 # remote  ftp in locale e le sincronizza nelle  #
 # directory scelta.			        #
 # Crea un file backup.sh che viene inserito in	#
@@ -22,9 +22,12 @@
 
 intro () {
 
+	#	Presentazione e spiegazione dello script all'utente.
+
 	echo -e "\nQuesto script raccoglie i dati ftp dei domini di cui decidi di eseguire il backup."
 	echo -e "Lo script utilizza curlftps per accedere e montare lo spazio ftp dei domini indicati."
-	echo -e "Verrà poi scelta una directory locale su cui eseguire la sincronizzazione dei contenuti dello spazio wen di ciascun dominio mediante rsync."
+	echo -e "Verrà poi scelta una directory locale su cui eseguire la sincronizzazione dei contenuti dello spazio web di ciascun dominio mediante rsync."
+	echo -e "Se non sono installati, verranno installati i seguenti programmi necessari all'esecuzione dello script: curlftpfs e rsync."
 	echo -e "Sarà possibile aggiungere ulteriori domini, semplicemente richiamando questo script. \n"
 	echo -e "N.B. Assicuratevi di avere sufficiente spazio libero per ospitare i dati dei siti di cui si effettua il backup e di avere a disposizione \ni dati di accesso ftp corretti dei domini di cui volete eseguire un backup. \n"
 	
@@ -54,6 +57,8 @@ intro () {
 
 check_root () {
 
+	#	Controllo se si è root.
+
 	WHO=$(whoami);
 	ROOT="root"
 	CURL=$(dpkg -l |grep curlftpfs);
@@ -74,34 +79,38 @@ check_root () {
 
 check_curlftp () {
 
+	#       Controllo se è installato curlftpfs. Eventualmente lo installo.
+
 	CURL=$(dpkg -l |grep curlftpfs);
 
-		if [  ! -z "$CURL" ]; then
+	if [  ! -z "$CURL" ]; then
 
-			echo "cURLftp installato, tutto Ok."
+		echo "cURLftp installato, tutto Ok."
 
-		else
-			echo "cURLftp non installato, lo installo."
-			apt-get update && apt-get install curlftpfs && echo -e "Fatto."
+	else
+		echo "cURLftp non installato, lo installo."
+		apt-get update && apt-get install curlftpfs && echo -e "Fatto."
 
-		fi
+	fi
 
 }
 
 
 check_rsync () {
 
+	#	Controllo se è installato rsync. Eventualmente lo installo.
+
         RSYNC=$(dpkg -l |grep rsync);
 
-                if [  ! -z "$RSYNC" ]; then
+        if [  ! -z "$RSYNC" ]; then
 
-                        echo "rsync installato, tutto Ok."
+        	echo "rsync installato, tutto Ok."
 
-                else
-                        echo "rsync non installato, lo installo."
-                        apt-get update && apt-get install rsync && echo -e "Fatto."
+        else
+                echo "rsync non installato, lo installo."
+                apt-get update && apt-get install rsync && echo -e "Fatto."
 
-                fi
+        fi
 
 }
 
@@ -109,20 +118,22 @@ check_rsync () {
 
 check_dir () {
 
-		echo "Specificare il percorso completo in cui effettuare il backup (es. /home/backup/):"
+	#	Scelta della directory in cui verranno salvati i backup.	
 
-		read DIR
+	echo "Specificare il percorso completo in cui effettuare il backup (es. /home/backup/):"
 
-		if [ -d "$DIR" ]; then
+	read DIR
+
+	if [ -d "$DIR" ]; then
 		
-			echo -e "La procedura continuerà in questa directory: $DIR"
+		echo -e "La procedura continuerà in questa directory: $DIR"
   
-		else
+	else
 	
-			echo -e "La directory non esiste, la creo: $DIR"
-			mkdir $DIR
+		echo -e "La directory non esiste, la creo: $DIR"
+		mkdir $DIR
 
-		fi
+	fi
 
 }
 
@@ -130,13 +141,15 @@ check_dir () {
 
 initialize () {
 
-	echo -e "Di quanti domini devi fare il backup? (0-99)"
+	#	Inizializzazione del backup. Si sceglie il numero di domini da configurare e si inseriscono le rispettive credenziali.
+
+	echo -e "Di quanti domini devi fare il backup? (1-99)"
 
         read NUMERODOMINI
 
 	case $NUMERODOMINI in
 
-	[0-9]|[1-9][0-9])
+	[1-9]|[1-9][0-9])
 	
 		echo -e "Verranno aggiunti $NUMERODOMINI di cui fare il backup."	
 		echo -e "Assicurati che i dati inseriti siano corretti, altrimenti lo script fallirà."	
@@ -157,16 +170,17 @@ initialize () {
                 	echo -e "Inserisci la password del dominio $CONT"
 	                read PASS
 
-#			let CONT=CONT+1
-
-			# Aggiungere check directory o sito esistente
+			#	Controllo se esistono già delle directory create per gli stessi domini.
 		
 			if [ ! -d "$DIR/$DOMAIN" ] && [ ! -d "/mnt/$DOMAIN" ]; then
-#				echo "Le diorectory NON esistono"; exit 1;
+
+			#	Le directory NON esistono.
+
 				create
 		
 			else
-#				echo "Le diorectory esistono"; exit 1;
+
+			#	Le directory esistono.
 
 				echo -e "Esiste già una directory chiamata $DOMAIN. Continuo in questa directory? (S)ì, proseguo, (n)o esco."
 	
@@ -210,6 +224,8 @@ initialize () {
 
 create () {
 
+	# Funzione di creazione delle cartelle degli script del backup.
+
 create_dir
 create_sync
 
@@ -218,6 +234,8 @@ create_sync
 
 create_dir () {
 
+	#	Crea le directory dei backup dei singoli domini.
+
 	mkdir $DIR/$DOMAIN
         mkdir /mnt/$DOMAIN
 
@@ -225,8 +243,16 @@ create_dir () {
 
 create_sync () {
 
+	#	Funzione che si connette con curlftpfs allo spazio ftp del dominio, e la monta in /mnt/.
+
         curlftpfs -o nonempty -o user=$USER:$PASS ftp.$DOMAIN /mnt/$DOMAIN
+
+	#	Aggiungere controllo dati ftp.
+
+	#	Scrive il comando dell'rsynck nello script.
+
         echo "rsync -arvHu --progress --delete --stats /mnt/$DOMAIN/ $DIR/$DOMAIN" >> $SCRIPT
+	chmod +x $SCRIPT
 
 }		
 
@@ -234,7 +260,11 @@ create_sync () {
 
 configure () {
 
+	#	Funzione di controllo e configurazione iniziale del backup.
+
 	SCRIPT="$DIR/rsync.sh"
+
+	#	Controllo che non esistra già una versione dello script di backup.
 
 	if [ ! -f "$SCRIPT" ]; then
 
@@ -287,6 +317,8 @@ configure () {
 
 
 cron_day () {
+
+	#	Si sceglie il giorno in cui eseguire il backup.
 	
 	echo -e "Quale giorno dell settimana vuoi schedulare il backup? \n(L)unedì, (Ma)rdetì, (Me)rcoledì, (G)iovedì, (V)enerdì, (S)abato, (D)omenica, (O)gni giorno."
 
@@ -336,7 +368,9 @@ cron_day () {
 
 cron_hour () {
 
-        echo -e "A che ora vuoi schedulare il backup (Scegli solo l'ora, i minuti vengono scelti successivamente? (0-24), oppure (O)gni ora."
+	#	Si sceglie l'ora in cui eseguire il backup.
+
+        echo -e "A che ora vuoi schedulare il backup (Scegli solo l'ora, i minuti vengono scelti successivamente? (0-23), oppure (O)gni ora."
 
         read HOUR
 
@@ -362,6 +396,8 @@ cron_hour () {
 
 cron_minute () {
 
+	#	Si sceglie il minuto in cui eseguire il backup.
+
         echo -e "Hai scelto $CRONHOUR come ora. A che minuto vuoi schedulare il backup? (0-59)."
 
         read MINUTE
@@ -383,6 +419,8 @@ cron_minute () {
 
 
 cron_email () {
+	
+	#	Si sceglie se e a quale email inviare le notifiche dei backup
 
 	echo -e "Vuoi settare una mail per l'invio dei report dei backup? (S/n)"
 
@@ -413,7 +451,9 @@ cron_email () {
 
 
 crontab () {
-	
+
+	#	Imposto il backup con la scelta dell'utente delle singole funzioni.	
+
 	CRON="/etc/cron.d/mybackup"
 	
 	echo -e "Quasi finito. Ora bisogna configurare l'esecuzione automatica."
@@ -425,7 +465,14 @@ crontab () {
 
 	echo -e "A quale email vuoi inviare il report dei backup?"
 
+	#	Salvo le scelte dell'utente nel file /etc/cron.d/mybackup
+	
 	echo "$CRONMINUTE $CRONHOUR * * $CRONDAY $SCRIPT $CRONMAIL" > $CRON
+
+	#	Aggiungere umount alla fine?
+
+	# 	Riavvio il servizio cron e stampa riepilogo schedulazione.
+
         /etc/init.d/cron stop && /etc/init.d/cron start && \
 	echo -e "Sistema di backup installato con successo!"
 	echo -e "\nIl primo backup è schedulato per il giorno $CRONDAY della settimana alle ore $CRONHOUR e $CRONMINUTE. (*) Sta per (tutti/e)."
