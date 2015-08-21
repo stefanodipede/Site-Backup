@@ -245,15 +245,14 @@ create_sync () {
 
 	#	Funzione che si connette con curlftpfs allo spazio ftp del dominio, e la monta in /mnt/.
 
-        curlftpfs -o nonempty -o user=$USER:$PASS ftp.$DOMAIN /mnt/$DOMAIN
-
-	#	Aggiungere controllo dati ftp.
+	#	Controllo le credenziali, se sono corrette vado avanti, altrimenti, richiama l'inserimento dei dati.
+	
+        curlftpfs -o nonempty -o user=$USER:$PASS ftp.$DOMAIN /mnt/$DOMAIN || (echo "Dati non corretti. Dominio non aggiunto. Ricominciamo." &&  initialize;)
 
 	#	Scrive il comando dell'rsynck nello script.
 
-        echo "rsync -arvHu --progress --delete --stats /mnt/$DOMAIN/ $DIR/$DOMAIN" >> $SCRIPT
-	chmod +x $SCRIPT
-
+       	echo "rsync -arvHu --progress --delete --stats /mnt/$DOMAIN/ $DIR/$DOMAIN" >> $SCRIPT
+	
 }		
 
 
@@ -432,7 +431,7 @@ cron_email () {
 		echo -e "A quale email vuoi inviare i report? Inserire email completa (es. mario@gmail.com)"
 		read MAIL
         	echo -e "Proseguo. I report verranno inviati a $MAIL"
-                CRONMAIL="| mail -s \"Report Esecuzione Site-Backup\" $MAIL"
+                CRONMAIL="1> /dev/null 2>&1 | mail -s \"Report Esecuzione Site-Backup\" $MAIL"
         ;;
 
         N|n|No|no)
@@ -455,6 +454,7 @@ crontab () {
 	#	Imposto il backup con la scelta dell'utente delle singole funzioni.	
 
 	CRON="/etc/cron.d/mybackup"
+	UMOUNT="&& umount -a -t fuse"
 	
 	echo -e "Quasi finito. Ora bisogna configurare l'esecuzione automatica."
 
@@ -467,16 +467,16 @@ crontab () {
 
 	#	Salvo le scelte dell'utente nel file /etc/cron.d/mybackup
 	
-	echo "$CRONMINUTE $CRONHOUR * * $CRONDAY $SCRIPT $CRONMAIL" > $CRON
+	echo "$CRONMINUTE $CRONHOUR * * $CRONDAY $SCRIPT $UMOUNT $CRONMAIL" > $CRON
 
 	#	Aggiungere umount alla fine?
 
 	# 	Riavvio il servizio cron e stampa riepilogo schedulazione.
 
-        /etc/init.d/cron stop && /etc/init.d/cron start && \
+	chmod +x $CRON && chmod +x $SCRIPT && /etc/init.d/cron stop && /etc/init.d/cron start && \
 	echo -e "Sistema di backup installato con successo!"
 	echo -e "\nIl primo backup è schedulato per il giorno $CRONDAY della settimana alle ore $CRONHOUR e $CRONMINUTE. (*) Sta per (tutti/e)."
-	echo -e "\n\nPer lanciare prima il backup, esegui $SCRIPT"
+	echo -e "\nPer lanciare prima il backup, esegui $SCRIPT \n"
 
 }
 
