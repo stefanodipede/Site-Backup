@@ -1,10 +1,11 @@
 #!/bin/bash
 
 #################################################
-# Script by Stefano Di Pede Ver. 1.1            #
+# Script by Stefano Di Pede Ver. 1.1.2          #
 # Email: stefano@dipede.it                      #
 #                                               #
-# Script che imposta un backup settimanale	#
+# Script per distro Debian / Ubuntu		#
+# che imposta un backup settimanale		#
 # dello spazio web di una lista di siti.        #
 #                                               #
 # Lo script, installa i software necessari      #
@@ -53,7 +54,7 @@ intro () {
 
 check_root () {
 
-	WHO=(`whoami`)
+	WHO=$(whoami);
 	ROOT="root"
 	CURL=$(dpkg -l |grep curlftpfs);
 
@@ -129,64 +130,81 @@ check_dir () {
 
 initialize () {
 
-	echo -e "Di quanti domini devi fare il backup?"
+	echo -e "Di quanti domini devi fare il backup? (0-99)"
 
         read NUMERODOMINI
 
-        CONT=1
+	case $NUMERODOMINI in
 
-        let NUMERODOMINI=NUMERODOMINI+1
-
-        while [  $CONT -lt $NUMERODOMINI ]; do
-
-		echo -e "Inserisci il nome del dominio $CONT (senza www)"
-
-                read DOMAIN
-
-                echo -e "Inserisci l'username del dominio $CONT"
-                read USER
-
-                echo -e "Inserisci la password del dominio $CONT"
-                read PASS
-
-		# Aggiungere check directory o sito esistente
-		
-		if [ ! -d "$DIR/$DOMAIN" ] && [ ! -d "/mnt/$DOMAIN" ]; then
-
-			configure
-		
-		else
-
-			echo -e "Esiste già una directory chiamata $DOMAIN. Continuo in questa directory? (S)ì, proseguo, (n)o esco."
+	[0-9]|[1-9][0-9])
 	
-			read CONTINUE 
+		echo -e "Verranno aggiunti $NUMERODOMINI di cui fare il backup."	
+		echo -e "Assicurati che i dati inseriti siano corretti, altrimenti lo script fallirà."	
 
-			case $CONTINUE in
+        	CONT=1
 
-		        S|s|Y|y|Sì|Si|Yes|yes)
-                		echo -e "Proseguo."
-				create_sync
-	 	        ;;
+	        let NUMERODOMINI=NUMERODOMINI+1
 
-		        N|n|No|no)
-                		echo -e "Esco."
-		                exit 1
-        		;;
+	        while [  $CONT -lt $NUMERODOMINI ]; do
 
-		        *)
-                		echo -e "Scelta non valida."
-	                	initialize
-        		;;
+			echo -e "Inserisci il nome del dominio $CONT (senza www)"
 
-        		esac
+                	read DOMAIN
+
+	                echo -e "Inserisci l'username del dominio $CONT"
+        	        read USER
+
+                	echo -e "Inserisci la password del dominio $CONT"
+	                read PASS
+
+#			let CONT=CONT+1
+
+			# Aggiungere check directory o sito esistente
+		
+			if [ ! -d "$DIR/$DOMAIN" ] && [ ! -d "/mnt/$DOMAIN" ]; then
+#				echo "Le diorectory NON esistono"; exit 1;
+				create
+		
+			else
+#				echo "Le diorectory esistono"; exit 1;
+
+				echo -e "Esiste già una directory chiamata $DOMAIN. Continuo in questa directory? (S)ì, proseguo, (n)o esco."
+	
+				read CONTINUE 
+
+				case $CONTINUE in
+
+			        S|s|Y|y|Sì|Si|Yes|yes)
+                			echo -e "Proseguo."
+					create_sync
+		 	        ;;
+
+			        N|n|No|no)
+                			echo -e "Esco."
+		        	        exit 1
+	        		;;
+
+			        *)
+                			echo -e "Scelta non valida."
+	                		initialize
+        			;;
+
+        			esac
 			
-		fi
+			fi
+
+			let CONT=CONT+1
+
+		done
+	;;
 
 
+	*)
+		echo -e "Scelta non valida."
+		initialize
+	;;
 
-		let CONT=CONT+1
-
-	done
+	esac
 
 }
 
@@ -222,7 +240,7 @@ configure () {
 
 		echo -e "Prima configurazione nel backup."
 
-		configure
+		initialize
 		crontab
 
 	else
@@ -242,7 +260,7 @@ configure () {
 		;; 
 
 		R|r) 
-			> $SCRIPT
+			rm -f $SCRIPT
 		   	echo -e "Tutti i dati sui precedenti backup sono stati cancellati."
 		   	initialize
 		   	crontab
@@ -268,13 +286,150 @@ configure () {
 }
 
 
+cron_day () {
+	
+	echo -e "Quale giorno dell settimana vuoi schedulare il backup? \n(L)unedì, (Ma)rdetì, (Me)rcoledì, (G)iovedì, (V)enerdì, (S)abato, (D)omenica, (O)gni giorno."
+
+	read DAY
+
+	case $DAY in
+
+	L|l)
+		CRONDAY="1"
+	;;
+
+        Ma|MA|ma)
+                CRONDAY="2"
+        ;;
+
+        Me|ME|me)
+                CRONDAY="3"
+        ;;
+
+        G|g)
+                CRONDAY="4"
+        ;;
+
+        V|v)
+                CRONDAY="5"
+        ;;
+
+        S|s)
+                CRONDAY="6"
+        ;;
+
+        D|d)
+                CRONDAY="0"
+        ;;
+
+	O|o)
+		CRONDAY="*"
+	;;
+
+	*)
+		echo -e "Scelta non valida"
+		choose_day
+		
+	esac
+
+}
+
+cron_hour () {
+
+        echo -e "A che ora vuoi schedulare il backup (Scegli solo l'ora, i minuti vengono scelti successivamente? (0-24), oppure (O)gni ora."
+
+        read HOUR
+
+        case $HOUR in
+
+        [0-9]|1[0-9]|2[0-3])
+                CRONHOUR="$HOUR"
+        ;;
+
+	O|o)
+		CRONHOUR="*"
+	;;
+
+        *)
+                echo -e "Scelta non valida"
+                cron_hour
+	;;
+
+        esac
+
+}
+
+
+cron_minute () {
+
+        echo -e "Hai scelto $CRONHOUR come ora. A che minuto vuoi schedulare il backup? (0-59)."
+
+        read MINUTE
+
+        case $MINUTE in
+
+        [0-9]|[1-5][0-9])
+                CRONMINUTE="$MINUTE"
+        ;;
+
+        *)
+                echo -e "Scelta non valida"
+                cron_minute
+        ;;
+
+        esac
+
+}
+
+
+cron_email () {
+
+	echo -e "Vuoi settare una mail per l'invio dei report dei backup? (S/n)"
+
+	read SETMAIL
+
+	case $SETMAIL in
+
+        S|s|Y|y|Sì|Si|Yes|yes)
+		echo -e "A quale email vuoi inviare i report? Inserire email completa (es. mario@gmail.com)"
+		read MAIL
+        	echo -e "Proseguo. I report verranno inviati a $MAIL"
+                CRONMAIL="| mail -s \"Report Esecuzione Site-Backup\" $MAIL"
+        ;;
+
+        N|n|No|no)
+                echo -e "Ok, non verrà settata alcuna email per il report."
+          	CRONMAIL="2&1>/dev/null"
+        ;;
+
+        *)
+                echo -e "Scelta non valida."
+                cron_email
+                ;;
+	
+	esac
+
+}
+
+
 crontab () {
+	
+	CRON="/etc/cron.d/mybackup"
+	
+	echo -e "Quasi finito. Ora bisogna configurare l'esecuzione automatica."
 
-	# Aggiungere quando eseguire il backup ed email di alert
+	cron_day
+	cron_hour
+	cron_minute
+	cron_email
 
-	echo "* 1 * * 1 $SCRIPT 2&1>/dev/null" > /etc/cron.d/mybackup
+	echo -e "A quale email vuoi inviare il report dei backup?"
+
+	echo "$CRONMINUTE $CRONHOUR * * $CRONDAY $SCRIPT $CRONMAIL" > $CRON
         /etc/init.d/cron stop && /etc/init.d/cron start && \
-	echo -e "Sistema di backup installato con successo! \nIl primo backup è schedulato per il prossimo Lunedì alle 01:00. \n\nPer lanciare prima il backup, esegui $SCRIPT"
+	echo -e "Sistema di backup installato con successo!"
+	echo -e "\nIl primo backup è schedulato per il giorno $CRONDAY della settimana alle ore $CRONHOUR e $CRONMINUTE. (*) Sta per (tutti/e)."
+	echo -e "\n\nPer lanciare prima il backup, esegui $SCRIPT"
 
 }
 
