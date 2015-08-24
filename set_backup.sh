@@ -190,7 +190,7 @@ initialize () {
 
 			        S|s|Y|y|Sì|Si|Yes|yes)
                 			echo -e "Proseguo."
-					create_sync
+					create
 		 	        ;;
 
 			        N|n|No|no)
@@ -222,37 +222,56 @@ initialize () {
 
 }
 
-create () {
 
-	# Funzione di creazione delle cartelle degli script del backup.
+check_connection () {
 
-create_dir
-create_sync
+	if [  -f "$SCRIPT" ]; then
+
+        	echo "Dati corretti."
+		create_dir
+
+	else
+
+	       	echo "Dati NON corretti."
+	       	echo "Dominio non aggiunto. Ricominciamo:"
+	        initialize
+
+	fi
 
 }
 
 
 create_dir () {
 
-	#	Crea le directory dei backup dei singoli domini.
+        #       Crea le directory dei backup dei singoli domini.
 
-	mkdir $DIR/$DOMAIN
+        mkdir $DIR/$DOMAIN
         mkdir /mnt/$DOMAIN
 
 }
 
-create_sync () {
+
+create_script () {
+
+	echo "curlftpfs -o nonempty -o user=$USER:$PASS ftp.$DOMAIN /mnt/$DOMAIN" >> $SCRIPT
+        echo "rsync -arvHu --progress --delete --stats /mnt/$DOMAIN/ $DIR/$DOMAIN" >> $SCRIPT
+
+
+}
+
+
+create () {
+
+	FAIL=false;
 
 	#	Funzione che si connette con curlftpfs allo spazio ftp del dominio, e la monta in /mnt/.
 
-	#	Controllo le credenziali, se sono corrette vado avanti, altrimenti, richiama l'inserimento dei dati.
+	#	Controllo le credenziali, se sono corrette vado avanti, altrimenti, richiama l'inserimento dei dati. Se funzionano, scrive il comando dell'rsync nello script
 	
-        curlftpfs -o nonempty -o user=$USER:$PASS ftp.$DOMAIN /mnt/$DOMAIN || (echo "Dati non corretti. Dominio non aggiunto. Ricominciamo." &&  initialize;)
+	curlftpfs -o nonempty -o user=$USER:$PASS ftp.$DOMAIN /mnt/$DOMAIN && create_script
 
-	#	Scrive il comando dell'rsynck nello script.
+	check_connection
 
-       	echo "rsync -arvHu --progress --delete --stats /mnt/$DOMAIN/ $DIR/$DOMAIN" >> $SCRIPT
-	
 }		
 
 
@@ -275,7 +294,7 @@ configure () {
 	else
 
 		echo -e "Il backup è stato già configurato in questa directory."
-		EXTDOM=$(cat $SCRIPT |awk '{print$6}' |cut -f3 -d / );
+		EXTDOM=$(cat $SCRIPT | awk 'NR%2==0' | awk '{print$6}' |cut -f3 -d / );
 		echo -e "Sono già configurati i backup per i seguenti domini: \n$EXTDOM"
 
 		echo -e "Vuoi (A)ggiungere nuovi domini? Vuoi (R)esettare la configurazione del backup? Oppure (E)sci"
@@ -453,8 +472,9 @@ set_cron () {
 
 	#	Imposto il backup con la scelta dell'utente delle singole funzioni.	
 
+	CRONUSER="root"
 	CRON="/etc/cron.d/mybackup"
-	UMOUNT="&& umount -a -t fuse"
+	UMOUNT="umount -a -t fuse 1> /dev/null 2>&1"
 	
 	echo -e "Quasi finito. Ora bisogna configurare l'esecuzione automatica."
 
@@ -467,7 +487,8 @@ set_cron () {
 
 	#	Salvo le scelte dell'utente nel crontab e aggiungo l'uount alla fine dell'operazione
 	
-	crontab -l | { cat; echo "$CRONMINUTE $CRONHOUR * * $CRONDAY $SCRIPT $UMOUNT $CRONMAIL"; } | crontab -
+	#crontab -l | { cat; echo "($CRONMINUTE $CRONHOUR * * $CRONDAY $SCRIPT ; $UMOUNT) $CRONMAIL"; } | crontab -
+	echo "$CRONMINUTE $CRONHOUR * * $CRONDAY $CRONUSER $SCRIPT ; $UMOUNT $CRONMAIL"  > $CRON
 
 	# 	Riavvio il servizio cron e stampa riepilogo schedulazione.
 
