@@ -270,7 +270,7 @@ configure () {
 		echo -e "Prima configurazione nel backup."
 
 		initialize
-		crontab
+		set_cron
 
 	else
 
@@ -285,14 +285,14 @@ configure () {
 
 		A|a) 
 			initialize
-		   	crontab
+		   	set_cron
 		;; 
 
 		R|r) 
 			rm -f $SCRIPT
 		   	echo -e "Tutti i dati sui precedenti backup sono stati cancellati."
 		   	initialize
-		   	crontab
+		   	set_cron
 		;;
 
 		E|e) 	
@@ -359,7 +359,7 @@ cron_day () {
 
 	*)
 		echo -e "Scelta non valida"
-		choose_day
+		cron_day
 		
 	esac
 
@@ -442,14 +442,14 @@ cron_email () {
         *)
                 echo -e "Scelta non valida."
                 cron_email
-                ;;
+        ;;
 	
 	esac
 
 }
 
 
-crontab () {
+set_cron () {
 
 	#	Imposto il backup con la scelta dell'utente delle singole funzioni.	
 
@@ -467,7 +467,8 @@ crontab () {
 
 	#	Salvo le scelte dell'utente nel file /etc/cron.d/mybackup
 	
-	echo "$CRONMINUTE $CRONHOUR * * $CRONDAY $SCRIPT $UMOUNT $CRONMAIL" > $CRON
+	crontab -l | { cat; echo "$CRONMINUTE $CRONHOUR * * $CRONDAY $SCRIPT $UMOUNT $CRONMAIL"; } | crontab -
+	#	echo "$CRONMINUTE $CRONHOUR * * $CRONDAY $SCRIPT $UMOUNT $CRONMAIL" > $CRON
 
 	#	Aggiungere umount alla fine?
 
