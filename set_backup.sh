@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #################################################
-# Script by Stefano Di Pede Ver. 1.1.2          #
+# Script by Stefano Di Pede Ver. 1.1.3          #
 # Email: stefano@dipede.it                      #
 #                                               #
 # Script per distro Debian / Ubuntu		#
@@ -465,12 +465,9 @@ set_cron () {
 
 	echo -e "A quale email vuoi inviare il report dei backup?"
 
-	#	Salvo le scelte dell'utente nel file /etc/cron.d/mybackup
+	#	Salvo le scelte dell'utente nel crontab e aggiungo l'uount alla fine dell'operazione
 	
 	crontab -l | { cat; echo "$CRONMINUTE $CRONHOUR * * $CRONDAY $SCRIPT $UMOUNT $CRONMAIL"; } | crontab -
-	#	echo "$CRONMINUTE $CRONHOUR * * $CRONDAY $SCRIPT $UMOUNT $CRONMAIL" > $CRON
-
-	#	Aggiungere umount alla fine?
 
 	# 	Riavvio il servizio cron e stampa riepilogo schedulazione.
 
