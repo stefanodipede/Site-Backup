@@ -225,7 +225,7 @@ initialize () {
 
 check_connection () {
 
-	if [  -f "$SCRIPT" ]; then
+	if [  -f "$SCRIPT" ] && [ "$FAIL" = "false" ]; then
 
         	echo "Dati corretti."
 		create_dir
@@ -241,12 +241,38 @@ check_connection () {
 }
 
 
+check_mnt () {
+
+        #       Crea le directory  di appoggio dei backup dei singoli domini.
+
+        if [ -d "/mnt/$DOMAIN" ]; then
+
+                echo -e "Lo spazio ftp sarà montato in questa directory: /mnt/$DOMAIN"
+
+        else
+
+                echo -e "La directory di appoggio del backup non esiste, la creo: /mnt/$DOMAIN"
+                mkdir /mnt/$DOMAIN
+
+        fi
+
+}
+
+
 create_dir () {
 
         #       Crea le directory dei backup dei singoli domini.
 
-        mkdir $DIR/$DOMAIN
-        mkdir /mnt/$DOMAIN
+        if [ -d "$DIR/$DOMAIN" ]; then
+
+                echo -e "Il backup sarà effetutato in questa directory: $DIR/$DOMAIN"
+
+        else
+
+                echo -e "La directory del backup non esiste, la creo: $DIR/$DOMAIN"
+        	mkdir $DIR/$DOMAIN
+
+	fi
 
 }
 
@@ -255,6 +281,7 @@ create_script () {
 
 	echo "curlftpfs -o nonempty -o user=$USER:$PASS ftp.$DOMAIN /mnt/$DOMAIN" >> $SCRIPT
         echo "rsync -arvHu --progress --delete --stats /mnt/$DOMAIN/ $DIR/$DOMAIN" >> $SCRIPT
+	FAIL="false"
 
 
 }
@@ -262,9 +289,9 @@ create_script () {
 
 create () {
 
-	FAIL=false;
-
 	#	Funzione che si connette con curlftpfs allo spazio ftp del dominio, e la monta in /mnt/.
+
+	check_mnt
 
 	#	Controllo le credenziali, se sono corrette vado avanti, altrimenti, richiama l'inserimento dei dati. Se funzionano, scrive il comando dell'rsync nello script
 	
