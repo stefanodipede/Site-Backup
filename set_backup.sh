@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #################################################
-# Script by Stefano Di Pede Ver. 1.1.3          #
+# Script by Stefano Di Pede Ver. 1.1.4          #
 # Email: stefano@dipede.it                      #
 #                                               #
 # Script per distro Debian / Ubuntu		#
@@ -15,7 +15,11 @@
 # Crea un file backup.sh che viene inserito in	#
 # un cron settimanale. 				#
 # Se si vuole aggiungere altri domini,	 	#
-# bisogna richiamare questo script		#                                     
+# bisogna richiamare questo scripti.		#
+#						#                                     
+# N.B. Per l'invio dell'email di notifica	#
+# il server deve aver installato un servizio 	#
+# di posta funzionante (Es. Exim4, sendmail...)	#
 #						#
 #################################################
 
