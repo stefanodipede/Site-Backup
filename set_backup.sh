@@ -21,6 +21,9 @@
 # il server deve aver installato un servizio 	#
 # di posta funzionante (Es. Exim4, sendmail...)	#
 #						#
+# Per maggiori info e tutela, leggere il file	#
+# README.md					#
+#						#
 #################################################
 
 
